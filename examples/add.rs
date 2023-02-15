@@ -3,7 +3,7 @@ use std::array;
 use zelkova::Handler;
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main()  {
     let device = Handler::new().await.unwrap();
 
     let lhs: [f32; 512] = array::from_fn(|i| i as f32);
