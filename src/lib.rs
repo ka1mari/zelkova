@@ -80,85 +80,57 @@ impl_element! {
     u8 u16 u32 u64 usize
 }
 
-pub enum Depth { 
-    Entry,
+pub enum Depth {
     Bridge(u32),
     Result,
 }
 
-pub enum Identity {
-    Unique, 
-    Shared(u32),
-}
-
 pub enum Shader {
-    Builtin(&'static str),
-    Path(&'static str),
+    Builtin(&'static str), 
+    Imported(&'static str),
 }
 
-pub struct Component<T: Element, const N: usize> {
-    identity: Identity,
-    local: [T; N], 
+pub struct Context(Depth, Shader);
+
+impl Context {
+    
 }
 
-pub struct Context<T: Element, const N: usize> {
-    depth: Depth,
-    shader: Shader,
-    lhs: Component<T, N>, 
-    rhs: Component<T, N>,
+// Match case for depth
+#[macro_export]
+macro_rules! to_depth {
+    
+    () => {};
+    
 }
 
-pub trait Bridge {}
+// Match case for shader
+#[macro_export]
+macro_rules! to_shader {
 
-pub trait Resolvable {
-    type Output;
-
-    fn resolve(self) -> Self::Output;
+    (+) => { add };
+    (-) => { sub };
+    (*) => { mul };
+    (/) => { div };
 }
 
-impl<T: Element, const N: usize> Resolvable for [T; N] {
-    type Output = Component<T, N>;
+// Loop
+#[macro_export]
+macro_rules! compute_recursive {
+    
+    ($expr:expr) => { $expr };
 
-    fn resolve(self) -> Self::Output {
-        Component { 
-            identity: unsafe {
-                static mut ops: u32 = 0;
-                ops += 1;
-            
-                match ops {
-                    1 => Identity::Unique, 
-                    _ => {
-                        Identity::Shared(ops)
-                    }
-                }
-            },
-            local: self,
-        }
-    }
-} 
-
-macro_rules! impl_arithmetic {
-    ($($fn:ident, $op:ident;)+) => {$(   
-
-        impl<T: Element, const N: usize> ops::$op for Component<T, N> {        
-            type Output = Context<T, N>;
-
-            fn $fn(self, other: Component<T, N>) -> Self::Output where {  
-                Context {
-                    depth: Depth::Entry,
-                    shader: Shader::Builtin("$fn"),
-                    lhs: self,
-                    rhs: other,
-                }
-            }
-        }
-
-    )+}
-} 
-
-impl_arithmetic! {
-    add, Add;
-    sub, Sub;
-    mul, Mul;
-    div, Div;
+    ($tt:tt $op:tt $($expr:expr)*) => {
+        Context(to_depth!(), to_shader!($op), $tt, $(compute_recursive!($expr))*)
+    };
 }
+
+// Parse expression tokens
+#[macro_export]
+macro_rules! compute {
+
+    ($expr:expr) => {
+        compute_recursive!($expr).resolve().await
+    };
+}
+
